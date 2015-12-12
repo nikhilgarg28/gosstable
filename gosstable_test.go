@@ -143,3 +143,32 @@ func benchmarkReadHit(s int, b *testing.B) {
 func BenchmarkReadHit10K(b *testing.B)     { benchmarkReadHit(10000, b) }
 func BenchmarkReadHit100K(b *testing.B)    { benchmarkReadHit(100000, b) }
 func BenchmarkReadHitMillion(b *testing.B) { benchmarkReadHit(1000000, b) }
+
+func benchmarkReadMiss(s int, b *testing.B) {
+	d := getDictionary(s, 20, 100, 20, 200)
+	filename := "benchmark.sstb"
+	Write(filename, d)
+	table := New(filename)
+	// wait till we read the table
+	for table.Status() == loading {
+		time.Sleep(1 * time.Millisecond)
+	}
+
+	// getting another random dictionary ensures that there's almost
+	// zero overlap between table's contents and new keys, resulting in most
+	// misses
+	d2 := getDictionary(b.N, 20, 100, 20, 200)
+	dict := *d2
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		key := dict[i].key
+		v := table.Get(key)
+		result += len(v)
+	}
+}
+
+func BenchmarkReadMiss10K(b *testing.B)     { benchmarkReadMiss(10000, b) }
+func BenchmarkReadMiss100K(b *testing.B)    { benchmarkReadMiss(100000, b) }
+func BenchmarkReadMissMillion(b *testing.B) { benchmarkReadMiss(1000000, b) }
